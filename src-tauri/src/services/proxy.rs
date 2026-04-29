@@ -901,7 +901,8 @@ impl ProxyService {
             connect_host
         };
 
-        let proxy_origin = format!("http://{}:{}", connect_host_for_url, config.listen_port);
+        let scheme = if config.enable_https { "https" } else { "http" };
+        let proxy_origin = format!("{}://{}:{}", scheme, connect_host_for_url, config.listen_port);
         let proxy_url = proxy_origin.clone();
         let proxy_codex_base_url = format!("{}/v1", proxy_origin.trim_end_matches('/'));
 
@@ -1837,7 +1838,8 @@ impl ProxyService {
 
         // 判断是否需要重启（地址或端口变更）
         let require_restart = new_config.listen_address != previous.listen_address
-            || new_config.listen_port != previous.listen_port;
+            || new_config.listen_port != previous.listen_port
+            || new_config.enable_https != previous.enable_https;
 
         if require_restart {
             if let Some(server) = server_guard.take() {

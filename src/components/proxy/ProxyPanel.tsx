@@ -57,12 +57,14 @@ export function ProxyPanel({
   // 监听地址/端口的本地状态（端口用字符串以支持完全清空）
   const [listenAddress, setListenAddress] = useState("127.0.0.1");
   const [listenPort, setListenPort] = useState("15721");
+  const [enableHttps, setEnableHttps] = useState(false);
 
   // 同步全局配置到本地状态
   useEffect(() => {
     if (globalConfig) {
       setListenAddress(globalConfig.listenAddress);
       setListenPort(String(globalConfig.listenPort));
+      setEnableHttps(Boolean(globalConfig.enableHttps));
     }
   }, [globalConfig]);
 
@@ -164,6 +166,7 @@ export function ProxyPanel({
         ...globalConfig,
         listenAddress: addressTrimmed,
         listenPort: port,
+        enableHttps,
       });
       toast.success(
         t("proxy.settings.configSaved", { defaultValue: "代理配置已保存" }),
@@ -191,10 +194,10 @@ export function ProxyPanel({
   };
 
   // 格式化地址用于 URL（IPv6 需要方括号）
-  const formatAddressForUrl = (address: string, port: number): string => {
+  const formatAddressForUrl = (address: string, port: number, httpsEnabled: boolean): string => {
     const isIPv6 = address.includes(":");
     const host = isIPv6 ? `[${address}]` : address;
-    return `http://${host}:${port}`;
+    return `${httpsEnabled ? "https" : "http"}://${host}:${port}`;
   };
 
   return (
@@ -300,14 +303,14 @@ export function ProxyPanel({
                 </p>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                   <code className="flex-1 text-sm bg-background px-3 py-2 rounded border border-border/60">
-                    {formatAddressForUrl(status.address, status.port)}
+                    {formatAddressForUrl(status.address, status.port, enableHttps)}
                   </code>
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => {
                       navigator.clipboard.writeText(
-                        formatAddressForUrl(status.address, status.port),
+                        formatAddressForUrl(status.address, status.port, enableHttps),
                       );
                       toast.success(
                         t("proxy.panel.addressCopied", {
