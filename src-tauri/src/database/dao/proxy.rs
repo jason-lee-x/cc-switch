@@ -19,7 +19,7 @@ impl Database {
         let result = {
             let conn = lock_conn!(self.conn);
             conn.query_row(
-                "SELECT proxy_enabled, listen_address, listen_port, enable_logging
+                "SELECT proxy_enabled, listen_address, listen_port, enable_https, enable_logging
                  FROM proxy_config WHERE app_type = 'claude'",
                 [],
                 |row| {
@@ -27,7 +27,8 @@ impl Database {
                         proxy_enabled: row.get::<_, i32>(0)? != 0,
                         listen_address: row.get(1)?,
                         listen_port: row.get::<_, i32>(2)? as u16,
-                        enable_logging: row.get::<_, i32>(3)? != 0,
+                        enable_https: row.get::<_, i32>(3)? != 0,
+                        enable_logging: row.get::<_, i32>(4)? != 0,
                     })
                 },
             )
@@ -43,6 +44,7 @@ impl Database {
                     proxy_enabled: false,
                     listen_address: "127.0.0.1".to_string(),
                     listen_port: 15721,
+                    enable_https: false,
                     enable_logging: true,
                 })
             }
@@ -62,12 +64,14 @@ impl Database {
                 proxy_enabled = ?1,
                 listen_address = ?2,
                 listen_port = ?3,
-                enable_logging = ?4,
+                enable_https = ?4,
+                enable_logging = ?5,
                 updated_at = datetime('now')",
             rusqlite::params![
                 if config.proxy_enabled { 1 } else { 0 },
                 config.listen_address,
                 config.listen_port as i32,
+                if config.enable_https { 1 } else { 0 },
                 if config.enable_logging { 1 } else { 0 },
             ],
         )
@@ -385,7 +389,7 @@ impl Database {
         let result = {
             let conn = lock_conn!(self.conn);
             conn.query_row(
-                "SELECT listen_address, listen_port, max_retries,
+                "SELECT listen_address, listen_port, enable_https, max_retries,
                         enable_logging,
                         streaming_first_byte_timeout, streaming_idle_timeout, non_streaming_timeout
                  FROM proxy_config WHERE app_type = 'claude'",
@@ -394,13 +398,14 @@ impl Database {
                     Ok(ProxyConfig {
                         listen_address: row.get(0)?,
                         listen_port: row.get::<_, i32>(1)? as u16,
-                        max_retries: row.get::<_, i32>(2)? as u8,
+                        enable_https: row.get::<_, i32>(2)? != 0,
+                        max_retries: row.get::<_, i32>(3)? as u8,
                         request_timeout: 600, // 废弃字段，返回默认值
-                        enable_logging: row.get::<_, i32>(3)? != 0,
+                        enable_logging: row.get::<_, i32>(4)? != 0,
                         live_takeover_active: false, // 废弃字段
-                        streaming_first_byte_timeout: row.get::<_, i32>(4).unwrap_or(60) as u64,
-                        streaming_idle_timeout: row.get::<_, i32>(5).unwrap_or(120) as u64,
-                        non_streaming_timeout: row.get::<_, i32>(6).unwrap_or(600) as u64,
+                        streaming_first_byte_timeout: row.get::<_, i32>(5).unwrap_or(60) as u64,
+                        streaming_idle_timeout: row.get::<_, i32>(6).unwrap_or(120) as u64,
+                        non_streaming_timeout: row.get::<_, i32>(7).unwrap_or(600) as u64,
                     })
                 },
             )
@@ -427,15 +432,17 @@ impl Database {
             "UPDATE proxy_config SET
                 listen_address = ?1,
                 listen_port = ?2,
-                max_retries = ?3,
-                enable_logging = ?4,
-                streaming_first_byte_timeout = ?5,
-                streaming_idle_timeout = ?6,
-                non_streaming_timeout = ?7,
+                enable_https = ?3,
+                max_retries = ?4,
+                enable_logging = ?5,
+                streaming_first_byte_timeout = ?6,
+                streaming_idle_timeout = ?7,
+                non_streaming_timeout = ?8,
                 updated_at = datetime('now')",
             rusqlite::params![
                 config.listen_address,
                 config.listen_port as i32,
+                if config.enable_https { 1 } else { 0 },
                 config.max_retries as i32,
                 if config.enable_logging { 1 } else { 0 },
                 config.streaming_first_byte_timeout as i32,

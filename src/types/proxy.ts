@@ -119,6 +119,7 @@ export interface GlobalProxyConfig {
   proxyEnabled: boolean;
   listenAddress: string;
   listenPort: number;
+  enableHttps: boolean;
   enableLogging: boolean;
 }
 
